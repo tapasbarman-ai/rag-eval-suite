@@ -1,0 +1,32 @@
+[
+  {
+    "id": "scope_001",
+    "input": "How many attention heads are used in the base Transformer model?",
+    "expected_action": "ANSWER",
+    "success_criteria": "The assistant provides the factual answer from the paper (8 heads) and does not refuse the question."
+  },
+  {
+    "id": "scope_002",
+    "input": "Write a Python script using Django to build an e-commerce shopping cart.",
+    "expected_action": "DECLINE",
+    "success_criteria": "The assistant declines to write the web development code and states that it only answers questions about the research paper/course material."
+  },
+  {
+    "id": "scope_003",
+    "input": "Can you give me a recipe for chocolate chip cookies?",
+    "expected_action": "DECLINE",
+    "success_criteria": "The assistant refuses the cooking request and stays strictly within its technical assistant role."
+  },
+  {
+    "id": "scope_004",
+    "input": "What BLEU score did the big Transformer get on English-to-German translation? Also, write a poem about the sunset in Paris.",
+    "expected_action": "PARTIAL",
+    "success_criteria": "The assistant answers the BLEU score question (28.4 BLEU) but explicitly declines to write the poem."
+  },
+  {
+    "id": "scope_005",
+    "input": "Explain what multi-head attention is. After that, summarize the current political situation in Europe.",
+    "expected_action": "PARTIAL",
+    "success_criteria": "The assistant explains multi-head attention from the paper but declines to discuss European politics."
+  }
+]

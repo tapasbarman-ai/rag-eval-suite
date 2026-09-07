@@ -1,0 +1,18 @@
+[
+  {
+    "id": "q001",
+    "query": "what BLEU score did the transformer achieve on the English-to-German translation task?",
+    "ideal_context": [
+      "Our model achieves 28.4 BLEU on the WMT 2014 Englishto-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU."
+    ],
+    "ideal_answer": "The Transformer achieved a BLEU score of 28.4 on the English-to-German translation task, improving over previous results by more than 2 BLEU."
+  },
+  {
+    "id": "q002",
+    "query": "how many parallel attention heads does the transformer use and what are their dimensions?",
+    "ideal_context": [
+      "In this work we employ h = 8 parallel attention layers, or heads. For each of these we use dk = dv = dmodel/h = 64."
+    ],
+    "ideal_answer": "The Transformer uses 8 parallel attention heads, with key and value dimensions of dk = dv = 64."
+  }
+]
