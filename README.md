@@ -1,66 +1,97 @@
+<div align="center">
+
 # 🔬 RAG Evaluation Suite (`rag-eval-suite`)
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![DeepEval](https://img.shields.io/badge/evals-DeepEval-purple.svg)](https://confident-ai.com/)
-[![ChromaDB](https://img.shields.io/badge/vector_store-ChromaDB-orange.svg)](https://www.trychroma.com/)
-[![Gemini](https://img.shields.io/badge/embeddings%20%26%20LLM-Google%20Gemini-4285F4.svg)](https://ai.google.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**A Production-Grade Retrieval-Augmented Generation Pipeline & Continuous Evaluation Benchmark for Complex Technical Documents**
 
-A modular, production-ready **Retrieval-Augmented Generation (RAG)** pipeline and rigorous **evaluation benchmark suite** built for research documents (featuring the seminal paper *"Attention Is All You Need"*).
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![DeepEval](https://img.shields.io/badge/evals-DeepEval%20v4.2+-8A2BE2.svg)](https://confident-ai.com/)
+[![Vector Store: ChromaDB](https://img.shields.io/badge/vector__store-ChromaDB-FF6F00.svg)](https://www.trychroma.com/)
+[![LLM: Google Gemini](https://img.shields.io/badge/generation-Google%20Gemini-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Reranker: MS--MARCO](https://img.shields.io/badge/reranker-Cross--Encoder-green.svg)](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/tapasbarman-ai/rag-eval-suite/pulls)
 
-The suite provides automated testing across retrieval quality, generative fidelity, system guardrails (safety, leakage, scope, toxicity), and operational benchmarks (cost and latency) using **DeepEval** and **Google Gemini**.
+<p align="center">
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-key-features">Features</a> •
+  <a href="#-golden-evaluation-datasets">Golden Datasets</a> •
+  <a href="#-installation--setup">Setup</a> •
+  <a href="#-running-evaluations">Evals</a> •
+  <a href="#-operational-benchmarks">Cost & Latency</a> •
+  <a href="#-troubleshooting">FAQ</a>
+</p>
+
+</div>
 
 ---
 
-## 🏗️ Architecture Overview
+## 📖 Executive Summary
+
+**`rag-eval-suite`** is an end-to-end framework designed for building, evaluating, and regression-testing high-precision **Retrieval-Augmented Generation (RAG)** systems. Built around the foundational research paper [*"Attention Is All You Need"* (Vaswani et al., 2017)](data/NIPS-2017-attention-is-all-you-need-Paper.pdf), this suite addresses the critical challenges of RAG deployments:
+
+1. **Retrieval Degradation**: Solved via a two-stage retrieval pipeline pairing dense vector similarity search with cross-encoder reranking.
+2. **Generative Hallucination**: Guardrailed with context-bound prompt engineering and measured using DeepEval's Faithfulness and Answer Relevancy metrics.
+3. **Adversarial & Scope Vulnerabilities**: Validated across dedicated test suites for prompt leakage, out-of-domain scope defense, and toxicity.
+4. **Operational Economics**: Continuous tracking of token loads, per-query inference costs, and Time-to-First-Token (TTFT) streaming latencies.
+
+---
+
+## 🏗️ Architecture
 
 ```mermaid
-graph TD
-    A[Raw Research Paper PDF] --> B[PDF Preprocessing & Cleaning data.py]
-    B --> C[Clean Text & Chunks data/data.txt]
-    C --> D[ChromaDB Vector Store + Gemini Embeddings]
-    
-    Q[User Query] --> E[Two-Stage Retrieval]
-    D --> E
-    E -->|Step 1: Over-fetch top_k=10| F[Bi-Encoder Vector Search]
-    F -->|Step 2: Cross-Encoder Reranking| G[MS-MARCO MiniLM Reranker]
-    G -->|Filtered Contexts top_k=5| H[Gemini Generator src/generator.py]
-    
-    Q --> H
-    H --> I[Grounded Response]
-
-    subgraph DeepEval Evaluation Harness
-        I -.-> J[RAG Triad: Faithfulness & Relevancy]
-        G -.-> K[Retrieval: Recall & Precision]
-        H -.-> L[Guardrails: Scope, Safety, Toxicity, Leakage]
-        H -.-> M[Operations: Cost & Latency TTFT]
+flowchart TD
+    subgraph INGESTION["1. Document Ingestion & Indexing"]
+        PDF["Attention Is All You Need (PDF)"] --> CLEAN["data.py (PyMuPDF + Regex Normalization)"]
+        CLEAN --> TEXT["Clean Text & Chunks (200 words, 50 overlap)"]
+        TEXT --> EMBED["Gemini Embeddings (gemini-embedding-001)"]
+        EMBED --> CHROMA[("ChromaDB Vector Store (chroma_store/)")]
     end
+
+    subgraph RETRIEVAL["2. Two-Stage Retrieval Pipeline"]
+        QUERY["User Query"] --> DENSE["Stage 1: Dense Over-Fetch (fetch_k=10)"]
+        CHROMA -.-> DENSE
+        DENSE --> RERANK["Stage 2: MS-MARCO Cross-Encoder Reranking"]
+        RERANK --> TOPK["Top Context Chunks (top_k=5)"]
+    end
+
+    subgraph GENERATION["3. Guardrailed Generation"]
+        TOPK --> PROMPT["Context Assembly & Defense Prompting"]
+        QUERY --> PROMPT
+        PROMPT --> GEMINI["Google Gemini (gemini-3.1-flash-lite)"]
+        GEMINI --> RESP["Grounded, Safe Response"]
+    end
+
+    subgraph EVALUATION["4. DeepEval Evaluation & Benchmarking"]
+        RESP -.-> RAG_TRIAD["RAG Triad (Recall, Precision, Faithfulness, Relevancy)"]
+        RESP -.-> GUARDRAILS["Guardrails (Scope, Toxicity, Leakage, Safety)"]
+        RESP -.-> OPS["Operations (Cost per Query, TTFT, Latency)"]
+    end
+
+    style INGESTION fill:#f8f9fa,stroke:#333,stroke-width:1px
+    style RETRIEVAL fill:#eef6fc,stroke:#1e88e5,stroke-width:1px
+    style GENERATION fill:#f3e8fd,stroke:#7b1fa2,stroke-width:1px
+    style EVALUATION fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px
 ```
 
 ---
 
-## 🚀 Key Features
+## ✨ Key Features
 
-### 1. Two-Stage Retrieval Pipeline
-- **Bi-Encoder Dense Retrieval**: Ingests document chunks into **ChromaDB** using `gemini-embedding-001`. Over-fetches candidate chunks (`fetch_k=10`).
-- **Cross-Encoder Reranking**: Re-scores candidate pairs with `cross-encoder/ms-marco-MiniLM-L-6-v2` (`top_k=5`), significantly improving Contextual Precision and Contextual Recall.
+### 🔍 1. Two-Stage Precision Retrieval
+- **Bi-Encoder Ingestion**: Chunks raw technical text with a 200-word window and 50-word sliding overlap, indexing into **ChromaDB** via `gemini-embedding-001`.
+- **Cross-Encoder Reranking**: Over-fetches `k=10` candidate documents from ChromaDB, then re-scores all query-chunk pairs using `cross-encoder/ms-marco-MiniLM-L-6-v2` down to `top_k=5`. This eliminates false-positive cosine similarity noise and surfaces the highest-relevance context.
 
-### 2. Guardrailed Generation
-- **Grounded Answering**: Constrained strictly to retrieved paper contexts using token-optimized system prompts.
-- **Scope Enforcement**: Declines out-of-domain requests (recipes, general coding) while gracefully serving in-domain questions.
-- **Anti-Leakage & Privacy**: Prevents system prompt extraction, verbatim chunk dumping, and PII/credential leakage.
-- **Streaming & Streaming Metrics**: Built-in `generate_stream()` for measuring Time-to-First-Token (TTFT) and token throughput.
+### 🛡️ 2. Production Guardrails & Prompt Defenses
+- **Grounded Attribution**: Zero-shot hallucination prevention forcing the model to strictly cite provided context or state information absence.
+- **Scope Compliance**: Deflects out-of-domain requests (recipes, general Python scripts, creative writing) while cleanly answering valid research questions.
+- **Anti-Leakage & Privacy**: Neutralizes prompt-extraction attacks, prevents dumping verbatim chunks, and protects internal secrets.
+- **Toxicity & Jailbreak Resistance**: Ignores adversarial persona-adoption prompts and maintains an objective, professional tone.
 
-### 3. Comprehensive Evaluation Matrix
-Powered by **DeepEval** with golden evaluation test sets:
-- **Retrieval Evals** (`evals/eval_retriver.py`): Contextual Recall & Contextual Precision.
-- **Generator Evals** (`evals/eval_generator.py`): Answer Relevancy & Faithfulness.
-- **End-to-End Pipeline** (`evals/eval_rag_pipeline.py`): Full RAG Triad assessment.
-- **Scope & Out-of-Domain Evals** (`evals/eval_scope.py`): Intent classification and refusal boundaries.
-- **Toxicity & Safety Evals** (`evals/eval_toxicity.py`, `evals/eval_safety.py`): Resistance to adversarial prompts, jailbreaks, and toxicity.
-- **Prompt Leakage Evals** (`evals/eval_leakage.py`): Evaluates resilience against prompt injection and extraction attacks.
-- **Operational Benchmarks** (`evals/eval_cost.py`, `evals/eval_latency.py`): Tracks token counts, cost per query, TTFT, and total latency.
-- **Holistic Application Suite** (`evals/eval_application.py`): Aggregated multi-metric evaluation runner.
+### 📊 3. Automated DeepEval Benchmark Matrix
+- **Shared Evaluation Harness** ([evals/harness.py](evals/harness.py)): Per-metric score distribution analysis (`pass_rate`, `avg_score`, `min_score`, `max_score`) preventing regression masking.
+- **Golden Ground-Truth Datasets**: 6 standardized JSON benchmark sets capturing both ideal responses and adversarial edge cases.
+- **Operational Profiling**: Integrated token measurement and latency tracing capturing millisecond-level TTFT and exact micro-dollar pricing.
 
 ---
 
@@ -69,159 +100,214 @@ Powered by **DeepEval** with golden evaluation test sets:
 ```text
 rag-eval-suite/
 ├── data/
-│   ├── NIPS-2017-attention-is-all-you-need-Paper.pdf  # Raw paper document
-│   └── data.txt                                      # Preprocessed research paper text
+│   ├── NIPS-2017-attention-is-all-you-need-Paper.pdf  # Original research paper PDF
+│   └── data.txt                                      # Normalized, preprocessed paper text
 ├── evals/
 │   ├── __init__.py
-│   ├── harness.py               # Shared harness: golden loader, per-metric aggregators
-│   ├── eval_retriver.py          # Contextual recall & precision evaluations
-│   ├── eval_generator.py         # Faithfulness & relevancy evaluations
-│   ├── eval_rag_pipeline.py      # End-to-end RAG triad evaluation
-│   ├── eval_scope.py             # Scope boundary & refusal evaluations
-│   ├── eval_toxicity.py          # Toxicity & harmful content evaluations
-│   ├── eval_leakage.py           # Prompt and data leakage resistance evals
-│   ├── eval_safety.py            # Safety guardrail evaluations
-│   ├── eval_cost.py              # Cost estimation & token usage benchmarks
-│   ├── eval_latency.py           # TTFT and end-to-end latency benchmarks
-│   └── eval_application.py       # Full-suite aggregated test execution
+│   ├── harness.py               # Shared harness: golden loader & per-metric aggregator
+│   ├── eval_retriver.py         # Contextual Recall & Contextual Precision
+│   ├── eval_generator.py        # Faithfulness & Answer Relevancy
+│   ├── eval_rag_pipeline.py     # End-to-end RAG Triad assessment
+│   ├── eval_scope.py            # Scope boundaries & refusal behavior
+│   ├── eval_leakage.py          # System prompt & confidential data leakage
+│   ├── eval_toxicity.py         # Toxicity & abusive input defense
+│   ├── eval_safety.py           # Comprehensive safety & alignment checks
+│   ├── eval_cost.py             # Token consumption & query cost tracking
+│   ├── eval_latency.py          # TTFT and total generation latency benchmarking
+│   └── eval_application.py      # Holistic multi-metric evaluation runner
 ├── goldens/
-│   ├── correctnes_goldens.json   # Ground-truth questions & expected answers
-│   ├── generator_goldens.json    # Generation test cases with reference contexts
-│   ├── retrivers_goldens.json    # Retrieval test cases with expected context
-│   ├── scope_goldens.json        # In-scope and out-of-scope test cases
-│   ├── toxicity_goldens.json     # Adversarial and toxic prompts
-│   └── leakage_goldens.json      # Extraction and injection probe queries
+│   ├── retrivers_goldens.json   # Ground truth queries & target retrieval chunks
+│   ├── generator_goldens.json   # Queries with pre-bound contexts & target answers
+│   ├── correctnes_goldens.json  # Factual Q&A pairs for correctness validation
+│   ├── scope_goldens.json       # In-domain vs out-of-domain test queries
+│   ├── leakage_goldens.json     # Adversarial prompt-extraction attack queries
+│   └── toxicity_goldens.json    # Adversarial & toxic inputs for safety scoring
 ├── src/
 │   ├── __init__.py
-│   ├── retriever.py              # Gemini embeddings + ChromaDB persistent index
-│   ├── reranker.py               # SentenceTransformers MS-MARCO Cross-Encoder
-│   ├── generator.py              # Gemini LLM generation with guardrails
-│   └── rag_pipeline.py           # Assembled RAG orchestrator
-├── data.py                       # PDF text extraction and regex cleaner
-├── pyproject.toml                # Project metadata and dependencies
-├── uv.lock                       # Dependency lockfile
-├── .env.example                  # Environment variables template
-├── .gitignore                    # Git ignore file (excludes secrets & caches)
-└── README.md                     # Project documentation
+│   ├── retriever.py             # Persistent ChromaDB vector store + Gemini Embeddings
+│   ├── reranker.py              # MS-MARCO Cross-Encoder reranking retriever
+│   ├── generator.py             # Guardrailed Gemini generation with streaming
+│   └── rag_pipeline.py          # Unified end-to-end RAG pipeline orchestrator
+├── data.py                      # PDF parsing (PyMuPDF) & regex normalization pipeline
+├── pyproject.toml               # Project metadata, tools, and dependency declarations
+├── uv.lock                      # Deterministic dependency lockfile
+├── .env.example                 # Environment variables configuration template
+├── .gitignore                   # Excludes environments, secrets, databases & logs
+└── README.md                    # Comprehensive documentation
 ```
+
+---
+
+## 🎯 Golden Evaluation Datasets
+
+The repository maintains specialized golden datasets in `goldens/` designed to benchmark each component independently:
+
+| Dataset File | Target Evaluation | Description | Sample Schema Keys |
+| :--- | :--- | :--- | :--- |
+| [`retrivers_goldens.json`](goldens/retrivers_goldens.json) | Retriever & Reranker | Assesses whether retriever surfaces the exact sections containing the facts. | `query`, `expected_context` |
+| [`generator_goldens.json`](goldens/generator_goldens.json) | Generator | Assesses answer generation quality when ground-truth context is provided. | `query`, `context`, `expected_output` |
+| [`correctnes_goldens.json`](goldens/correctnes_goldens.json) | End-to-End Pipeline | Full pipeline validation against human-authored reference answers. | `query`, `expected_output` |
+| [`scope_goldens.json`](goldens/scope_goldens.json) | Scope Guardrails | Tests correct refusal of out-of-scope tasks (e.g. recipes, generic code). | `query`, `is_in_scope`, `expected_refusal` |
+| [`leakage_goldens.json`](goldens/leakage_goldens.json) | Security / Privacy | Evaluates model immunity to prompt injection and system prompt extraction. | `query`, `attack_type` |
+| [`toxicity_goldens.json`](goldens/toxicity_goldens.json) | Safety / Guardrails | Adversarial provocations and toxic probes to measure safety scoring. | `query`, `category` |
 
 ---
 
 ## ⚙️ Installation & Setup
 
 ### 1. Prerequisites
-- Python 3.10+
-- [`uv`](https://github.com/astral-sh/uv) (recommended) or standard `pip`
+- **Python**: `3.10` or higher
+- **Fast Package Manager**: [`uv`](https://github.com/astral-sh/uv) (strongly recommended) or standard `pip`
 
-### 2. Clone the Repository
+### 2. Clone Repository
 ```bash
 git clone https://github.com/tapasbarman-ai/rag-eval-suite.git
 cd rag-eval-suite
 ```
 
 ### 3. Install Dependencies
-Using `uv`:
+
+**Using `uv` (Recommended):**
 ```bash
 uv sync
 ```
-Or using standard `pip`:
+
+**Using standard `pip`:**
 ```bash
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
+
 pip install -e .
 ```
 
 ### 4. Configure Environment Variables
-Copy `.env.example` to `.env` and fill in your API credentials:
+Copy [.env.example](.env.example) to `.env` and fill in your API credentials:
+
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
 ```env
+# Google Gemini API
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.1-flash-lite
+
+# Groq API (Optional / Alternative Generator)
 GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Evaluation Settings
 EVAL_LIMIT=5
+COST_REPEATS=3
 ```
 
 ---
 
-## 🚦 Usage
+## 🚀 Quickstart & Pipeline Usage
 
-### Running the RAG Pipeline
-
-You can query the RAG pipeline directly via Python:
-
+### Interactive Query via CLI
+Run a sample query through the RAG pipeline:
 ```bash
 python -m src.rag_pipeline
 ```
 
-Or invoke programmatically:
+### Programmatic Python API
 ```python
 from src.rag_pipeline import RagPipeline
 
+# Initialize pipeline (loads ChromaDB index and Cross-Encoder model)
 rag = RagPipeline(fetch_k=10, top_k=5)
-response = rag.invoke("What is Multi-Head Attention and why is it beneficial?")
 
-print("Answer:", response["answer"])
-print("Retrieved Context Chunks:", len(response["context"]))
+# Query the pipeline
+response = rag.invoke("Explain how Scaled Dot-Product Attention works.")
+
+print("--- ANSWER ---")
+print(response["answer"])
+
+print("\n--- RETRIEVED CONTEXTS ---")
+for i, chunk in enumerate(response["context"]):
+    print(f"[{i + 1}] {chunk[:120]}...\n")
+```
+
+### Streaming Responses (Low Latency UI)
+```python
+from src.generator import GeminiGenerator
+
+generator = GeminiGenerator()
+for token in generator.generate_stream("What are the advantages of Multi-Head Attention?"):
+    print(token, end="", flush=True)
 ```
 
 ---
 
-## 🧪 Running Evaluations
+## 🧪 Running the Evaluation Suite
 
-All evaluation scripts can be executed standalone. Set `EVAL_LIMIT` in `.env` or as an environment variable to control test sample size.
+All evaluation modules in `evals/` can be executed independently. Test sample sizes can be controlled using the `EVAL_LIMIT` environment variable.
 
 ```bash
-# 1. Evaluate Retriever (Contextual Recall & Contextual Precision)
+# ==========================================================
+# 1. RETRIEVAL EVALUATIONS
+# ==========================================================
+# Measures Contextual Recall & Contextual Precision via DeepEval
 python evals/eval_retriver.py
 
-# 2. Evaluate Generator (Faithfulness & Answer Relevancy)
+# ==========================================================
+# 2. GENERATION EVALUATIONS
+# ==========================================================
+# Measures Faithfulness & Answer Relevancy on fixed context
 python evals/eval_generator.py
 
-# 3. Evaluate End-to-End RAG Pipeline
+# ==========================================================
+# 3. END-TO-END RAG TRIAD
+# ==========================================================
+# Runs full pipeline: Retrieval + Generation + Triad Metrics
 python evals/eval_rag_pipeline.py
 
-# 4. Evaluate Guardrails (Safety, Scope, Leakage, Toxicity)
+# ==========================================================
+# 4. GUARDRAILS & ADVERSARIAL BENCHMARKS
+# ==========================================================
+# Out-of-scope detection and graceful refusal
 python evals/eval_scope.py
+
+# Prompt extraction and confidential data leakage resistance
 python evals/eval_leakage.py
+
+# Toxicity resistance and objective alignment
 python evals/eval_toxicity.py
+
+# Full safety guardrail validation
 python evals/eval_safety.py
 
-# 5. Measure Latency and Cost Benchmarks
+# ==========================================================
+# 5. OPERATIONAL BENCHMARKS (COST & LATENCY)
+# ==========================================================
+# Measures Time-to-First-Token (TTFT) and token throughput
 python evals/eval_latency.py
+
+# Measures token consumption and exact USD / INR costs
 python evals/eval_cost.py
 
-# 6. Run Complete Application Evaluation Suite
+# ==========================================================
+# 6. COMPLETE MULTI-METRIC SUITE
+# ==========================================================
+# Runs comprehensive regression evaluation across all modules
 python evals/eval_application.py
 ```
 
 ---
 
-## 📊 Evaluation Metrics Summary
+## 💰 Operational Benchmarks
 
-| Metric | Target Component | Description |
-| :--- | :--- | :--- |
-| **Contextual Precision** | Retriever & Reranker | Measures if relevant chunks are ranked higher than irrelevant ones |
-| **Contextual Recall** | Retriever | Measures if all ground-truth facts were successfully retrieved |
-| **Faithfulness** | Generator | Verifies the response does not hallucinate beyond retrieved context |
-| **Answer Relevancy** | Generator | Measures how directly and concisely the answer addresses the query |
-| **Scope Compliance** | Guardrails | Verifies rejection of out-of-domain queries and adherence to paper topic |
-| **Prompt Leakage** | Guardrails | Tests resistance against extraction of system prompts & internal tokens |
-| **Toxicity Resistance**| Guardrails | Ensures answers remain objective, polite, and free of toxicity |
-| **TTFT & Latency** | System / Infra | Measures Time-to-First-Token and total generation latency |
-| **Inference Cost** | System / Infra | Quantifies token expenditure and estimated cost per transaction |
-
----
-
-## 💰 Operational Cost Evaluation Benchmark (`evals/eval_cost.py`)
-
-Real-world benchmark execution results measuring token efficiency, cost per query, and business traffic projections using Google Gemini (`gemini-3.1-flash-lite`):
+### 1. Cost Benchmark Report ([evals/eval_cost.py](evals/eval_cost.py))
+Evaluated on **Google Gemini** (`gemini-3.1-flash-lite`) across real-world research queries:
 
 ```text
 ============================================================================
 💰 OPERATIONAL COST EVALUATION (gemini-3.1-flash-lite)
-   Rates: $0.10/1M input | $0.40/1M output | $0.025/1M cached
+   Pricing: $0.10/1M input | $0.40/1M output | $0.025/1M cached
 ============================================================================
 Samples evaluated      : 4
 Avg input tokens       :     1,210   (0 cached)
@@ -231,22 +317,83 @@ Avg cost / query       : $0.000179   (₹0.0170)
 Min / Max per query    : $0.000165 / $0.000191
 Cost split             : 67% input / 33% output
 ----------------------------------------------------------------------------
-Projection @ 2,000 queries/day:
-   Per day             : $   0.359   (₹   34.09)
-   Per month (30 days) : $  10.764   (₹ 1,022.58)
+Production Projections:
+   2,000 queries/day   : $   0.359 / day   (₹   34.09 / day)
+   60,000 queries/mo   : $  10.764 / month (₹ 1,022.58 / month)
 ============================================================================
 BUDGET TARGET: cost/query <= $0.000500
 VERDICT      : $0.000179  [PASS]
 ============================================================================
 ```
 
-### Key Takeaways
-- **Ultra-Low Cost per Query**: At **$0.000179 (~₹0.017)** per query, the RAG pipeline operates well within the **$0.0005** SLO ceiling (passing budget targets).
-- **Token Distribution**: 1,210 average input tokens (context + query + prompt guardrails) produce concise 146-token answers.
-- **Scale Economics**: Supporting 2,000 queries/day costs only **~$0.36/day** or **~$10.76/month**.
+### 2. Efficiency Highlights
+- **Budget Compliance**: Average cost per query is **$0.000179**, achieving a **64% margin** beneath the production cost ceiling of $0.0005.
+- **Optimal Context Density**: 1,210 input tokens provide complete grounding across 5 reranked chunks without wasteful context bloating.
+- **Sustainable Scale**: 60,000 monthly user queries cost approximately **$10.76** total.
+
+---
+
+## 📊 Evaluation Metrics Reference
+
+| Category | Metric | Component Evaluated | Evaluator / Method | Success Threshold |
+| :--- | :--- | :--- | :--- | :--- |
+| **Retrieval** | **Contextual Precision** | Retriever & Reranker | DeepEval LLM Judge | Score $\ge 0.70$ |
+| **Retrieval** | **Contextual Recall** | Retriever & Embeddings | DeepEval LLM Judge | Score $\ge 0.70$ |
+| **Generation** | **Faithfulness** | Generator | DeepEval LLM Judge | Score $\ge 0.70$ |
+| **Generation** | **Answer Relevancy** | Generator | DeepEval LLM Judge | Score $\ge 0.70$ |
+| **Guardrails** | **Scope Compliance** | Prompt Defense | Intent Classification | Pass Rate $100\%$ |
+| **Guardrails** | **Prompt Leakage** | Anti-Injection Rules | Heuristic & Semantic Check | Pass Rate $100\%$ |
+| **Guardrails** | **Toxicity Score** | LLM Output | Toxicity Classifier | Toxicity $< 0.10$ |
+| **Operations** | **Time-to-First-Token** | Stream Generator | Timestamp Delta | TTFT $< 800\text{ ms}$ |
+| **Operations** | **Cost / Query** | Infrastructure | Gemini Token Usage Metadata | Cost $< \$0.0005$ |
+
+---
+
+## 💡 FAQ & Troubleshooting
+
+<details>
+<summary><b>1. Windows Console UnicodeEncodeError with Currency Symbols or Emojis</b></summary>
+
+On Windows systems using standard PowerShell/cmd with default `cp1252` encoding, printing special characters like `₹` or `💰` may throw:
+```text
+UnicodeEncodeError: 'charmap' codec can't encode character...
+```
+**Fix**: Set `PYTHONIOENCODING=utf-8` before running your script:
+```powershell
+$env:PYTHONIOENCODING="utf-8"
+python evals/eval_cost.py
+```
+</details>
+
+<details>
+<summary><b>2. Hugging Face Hub Download Warning</b></summary>
+
+When running `src.reranker` for the first time, you may see:
+```text
+Warning: You are sending unauthenticated requests to the HF Hub.
+```
+This is harmless and occurs because the MS-MARCO model (`cross-encoder/ms-marco-MiniLM-L-6-v2`) is downloaded once to your local cache (`~80MB`). Once cached, it runs offline on CPU/GPU without remote requests.
+</details>
+
+<details>
+<summary><b>3. Avoiding Gemini API Free-Tier Quota Exhaustion</b></summary>
+
+DeepEval calls an LLM judge for metric computation. Set `EVAL_LIMIT=2` in your `.env` during local development to conserve quota, and increase it during scheduled CI/CD evaluation runs.
+</details>
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feat/new-metric`).
+3. Commit your changes (`git commit -m 'feat: add novelty metric evaluation'`).
+4. Push to the branch (`git push origin feat/new-metric`).
+5. Open a Pull Request.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
