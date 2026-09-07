@@ -214,6 +214,39 @@ python evals/eval_application.py
 
 ---
 
+## 💰 Operational Cost Evaluation Benchmark (`evals/eval_cost.py`)
+
+Real-world benchmark execution results measuring token efficiency, cost per query, and business traffic projections using Google Gemini (`gemini-3.1-flash-lite`):
+
+```text
+============================================================================
+💰 OPERATIONAL COST EVALUATION (gemini-3.1-flash-lite)
+   Rates: $0.10/1M input | $0.40/1M output | $0.025/1M cached
+============================================================================
+Samples evaluated      : 4
+Avg input tokens       :     1,210   (0 cached)
+Avg output tokens      :       146
+----------------------------------------------------------------------------
+Avg cost / query       : $0.000179   (₹0.0170)
+Min / Max per query    : $0.000165 / $0.000191
+Cost split             : 67% input / 33% output
+----------------------------------------------------------------------------
+Projection @ 2,000 queries/day:
+   Per day             : $   0.359   (₹   34.09)
+   Per month (30 days) : $  10.764   (₹ 1,022.58)
+============================================================================
+BUDGET TARGET: cost/query <= $0.000500
+VERDICT      : $0.000179  [PASS]
+============================================================================
+```
+
+### Key Takeaways
+- **Ultra-Low Cost per Query**: At **$0.000179 (~₹0.017)** per query, the RAG pipeline operates well within the **$0.0005** SLO ceiling (passing budget targets).
+- **Token Distribution**: 1,210 average input tokens (context + query + prompt guardrails) produce concise 146-token answers.
+- **Scale Economics**: Supporting 2,000 queries/day costs only **~$0.36/day** or **~$10.76/month**.
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License.
